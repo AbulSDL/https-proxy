@@ -1,0 +1,10 @@
+[Unit]
+Description=PROFI.neo-Proxy: Zertifikate erneuern
+After=docker.service network-online.target
+Wants=network-online.target
+OnFailure=status-mail@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO_DIR@
+ExecStart=@REPO_DIR@/scripts/renew.sh

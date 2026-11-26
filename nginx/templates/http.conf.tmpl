@@ -1,0 +1,16 @@
+# Erzeugt von scripts/render.sh - nicht von Hand ändern.
+# Port 80 für {{DOMAIN}}: ACME-Prüfung, sonst {{HTTP_ZWECK}}.
+server {
+    listen 80;
+    {{LISTEN6}}
+    server_name {{DOMAIN}};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    location / {
+        {{HTTP_AKTION}}
+    }
+}

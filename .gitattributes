@@ -1,0 +1,15 @@
+# Zeilenenden fest vorgeben, unabhängig von core.autocrlf des Klonenden.
+# Wird das Repo unter Windows geklont und auf den Linux-Host kopiert,
+# brechen Skripte mit CRLF ab ($'\r': command not found).
+* text=auto eol=lf
+
+# Windows-Dateien behalten CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binärdateien nie umwandeln
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary

@@ -1,0 +1,17 @@
+# Erzeugt von scripts/render.sh - nicht von Hand ändern.
+# Port 80 für unbekannte Hostnamen: ACME-Prüfdateien ausliefern, sonst 404.
+# So lässt sich ein Zertifikat holen, bevor die Instanz konfiguriert ist.
+server {
+    listen 80 default_server;
+    {{LISTEN6}}
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 404;
+    }
+}

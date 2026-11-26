@@ -1,0 +1,37 @@
+# Erzeugt von scripts/render.sh aus sites/{{SITE}}.env - nicht von Hand ändern.
+server {
+    listen {{LISTEN_PORT}} ssl;
+    {{LISTEN6}}
+    http2 on;
+    server_name {{DOMAIN}};
+
+    ssl_certificate     /etc/letsencrypt/live/{{DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN}}/privkey.pem;
+
+    {{HSTS_ZEILE}}
+
+    client_max_body_size {{CLIENT_MAX_BODY_SIZE}};
+
+    # {{APP_PATH_OHNE}} ohne Schrägstrich am Ende -> mit
+    location = {{APP_PATH_OHNE}} {
+        return 301 {{APP_PATH}};
+    }
+
+    location {{APP_PATH}} {
+        # Ohne URI-Teil: der Pfad geht unverändert an den JBoss
+        proxy_pass http://{{BACKEND}};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # Lange Leselaufzeit wegen WebSocket der MDE-Erfassung
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        return 404;
+    }
+}

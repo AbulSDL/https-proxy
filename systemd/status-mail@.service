@@ -1,0 +1,6 @@
+[Unit]
+Description=Statusmail für %i
+
+[Service]
+Type=oneshot
+ExecStart=@REPO_DIR@/scripts/status-mail.sh %i

@@ -1,0 +1,8 @@
+# Erzeugt von scripts/render.sh - nicht von Hand ändern.
+# Port {{LISTEN_PORT}}: TLS-Verbindungen mit unbekanntem Hostnamen ablehnen,
+# statt ihnen das Zertifikat einer Instanz zu zeigen.
+server {
+    listen {{LISTEN_PORT}} ssl default_server;
+    {{LISTEN6}}
+    ssl_reject_handshake on;
+}

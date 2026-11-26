@@ -1,0 +1,22 @@
+# Lokale Einstellungen und Zugangsdaten - Kundenwerte nie ins Repo
+.env
+host.env
+sites/*.env
+config.env
+msmtprc
+secrets/
+
+# Zertifikate und Laufzeitdaten
+letsencrypt/
+certbot/
+log/
+logs/
+
+# Von scripts/render.sh erzeugt
+nginx/conf.d/*.conf
+nginx/.render.*
+
+# Sicherungen und macOS
+*.bak
+*.bak-*
+.DS_Store

@@ -1,0 +1,10 @@
+[Unit]
+Description=PROFI.neo-Proxy: Zertifikate und Erreichbarkeit prüfen
+After=docker.service network-online.target
+Wants=network-online.target
+OnFailure=status-mail@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO_DIR@
+ExecStart=@REPO_DIR@/scripts/cert-check.sh

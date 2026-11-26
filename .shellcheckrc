@@ -1,0 +1,4 @@
+# Gemeinsame Einstellungen für shellcheck (lokal und in der GitHub-Action)
+# lib.sh wird per "source" relativ zum Skript geladen
+source-path=SCRIPTDIR
+external-sources=true

@@ -1,0 +1,10 @@
+[Unit]
+Description=PROFI.neo-Proxy: Zertifikate zweimal täglich erneuern
+
+[Timer]
+OnCalendar=*-*-* 03:42,15:42
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target
