@@ -18,6 +18,54 @@ Betrieb - erst Schritt 8 (JBoss umstellen) bringt einen kurzen Ausfall.
 Alle Befehle in **PowerShell als Administrator**. In PowerShell ist `curl`
 ein anderer Befehl - immer `curl.exe` schreiben.
 
+## Voraussetzung: Port 80 und 443 von außen erreichbar
+
+Ohne diese zwei Freigaben gibt es kein Zertifikat bzw. keinen Zugriff -
+**vor dem Termin** beim Kunden beauftragen (Portweiterleitung auf den
+Windows-Server des JBoss).
+
+| Port | Wofür | Wer greift zu | Wie lange offen |
+|---|---|---|---|
+| **80** (HTTP) | Let's-Encrypt-Prüfung | Server von Let's Encrypt aus dem Internet | **dauerhaft** |
+| **443** (HTTPS) | die Anwendung | Browser, iOS- und Android-App, MDE-Geräte | dauerhaft |
+
+**Warum Port 80:**
+
+- Let's Encrypt stellt ein Zertifikat nur aus, wenn wir zeigen, dass die
+  Domain zu uns gehört. Dafür ruft es von mehreren Standorten im Internet
+  eine Prüfdatei unter `http://<domain>/.well-known/acme-challenge/` ab.
+  Dieses Verfahren (HTTP-01) schreibt **Port 80** fest vor - ein anderer
+  Port ist nicht möglich.
+- Die Adressen der Let's-Encrypt-Server sind nicht fest und nicht
+  veröffentlicht. Eine Freigabe nur für bestimmte Absender geht deshalb
+  nicht; Port 80 muss für alle offen sein.
+- Zertifikate gelten 90 Tage und werden etwa alle 60 Tage auf demselben
+  Weg erneuert. Wird Port 80 nach der Ausstellung geschlossen, läuft das
+  Zertifikat rund zwei Monate später ab - dann melden Browser und Apps
+  einen Zertifikatsfehler und die Anwendung ist nicht mehr nutzbar.
+- Das Offenhalten ist unbedenklich: Auf Port 80 liefert der Proxy nur die
+  Prüfdatei aus und leitet alles andere auf HTTPS um. Anwendungsdaten
+  laufen dort nicht, der JBoss ist über Port 80 nicht erreichbar.
+
+**Warum Port 443:**
+
+- Darüber läuft die Anwendung selbst, verschlüsselt. Clients rufen
+  `https://<domain>/profi/` ohne Portnummer auf - das ist Port 443.
+- Das gilt für **alle** Clients, nicht nur für iOS: Browser, iOS- und
+  Android-App, MDE-Geräte, Schnittstellen.
+- Gerade die Apps brauchen HTTPS mit einem gültigen Zertifikat: iOS lässt
+  Apps grundsätzlich nur noch über HTTPS kommunizieren (App Transport
+  Security), Android sperrt unverschlüsseltes HTTP ab Version 9
+  standardmäßig ebenfalls. Ein selbst ausgestelltes Zertifikat lehnen
+  beide ab - darum Let's Encrypt.
+- Von außen nötig, sobald Geräte außerhalb des Firmennetzes arbeiten
+  (Mobilfunk, Außendienst, Homeoffice). Arbeiten wirklich alle Geräte nur
+  im Firmen-WLAN, reicht 443 intern (Split-DNS) - **Port 80 muss trotzdem
+  von außen offen sein**, sonst gibt es kein Zertifikat.
+- Caddy nutzt Port 80 genauso für Let's Encrypt; zusätzlich kann es die
+  Prüfung über Port 443 abwickeln. Port 80 trotzdem offen lassen - er
+  dient auch der Umleitung auf HTTPS und als Ausweichweg.
+
 ## 0. Vorab klären
 
 Wie [installation.md](installation.md), Schritt 0 - mit einem Unterschied:

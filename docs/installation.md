@@ -13,6 +13,54 @@ Weitere Instanz auf einem schon eingerichteten Host:
 [neue-instanz.md](neue-instanz.md). Vorher ausprobieren in einer VM:
 [test-vm.md](test-vm.md).
 
+## Voraussetzung: Port 80 und 443 von außen erreichbar
+
+Ohne diese zwei Freigaben gibt es kein Zertifikat bzw. keinen Zugriff -
+**vor dem Termin** beim Kunden beauftragen (Portweiterleitung auf den
+Proxy-Host).
+
+| Port | Wofür | Wer greift zu | Wie lange offen |
+|---|---|---|---|
+| **80** (HTTP) | Let's-Encrypt-Prüfung | Server von Let's Encrypt aus dem Internet | **dauerhaft** |
+| **443** (HTTPS) | die Anwendung | Browser, iOS- und Android-App, MDE-Geräte | dauerhaft |
+
+**Warum Port 80:**
+
+- Let's Encrypt stellt ein Zertifikat nur aus, wenn wir zeigen, dass die
+  Domain zu uns gehört. Dafür ruft es von mehreren Standorten im Internet
+  eine Prüfdatei unter `http://<domain>/.well-known/acme-challenge/` ab.
+  Dieses Verfahren (HTTP-01) schreibt **Port 80** fest vor - ein anderer
+  Port ist nicht möglich.
+- Die Adressen der Let's-Encrypt-Server sind nicht fest und nicht
+  veröffentlicht. Eine Freigabe nur für bestimmte Absender geht deshalb
+  nicht; Port 80 muss für alle offen sein.
+- Zertifikate gelten 90 Tage und werden etwa alle 60 Tage auf demselben
+  Weg erneuert. Wird Port 80 nach der Ausstellung geschlossen, läuft das
+  Zertifikat rund zwei Monate später ab - dann melden Browser und Apps
+  einen Zertifikatsfehler und die Anwendung ist nicht mehr nutzbar.
+- Das Offenhalten ist unbedenklich: Auf Port 80 liefert der Proxy nur die
+  Prüfdatei aus und leitet alles andere auf HTTPS um. Anwendungsdaten
+  laufen dort nicht, der JBoss ist über Port 80 nicht erreichbar.
+
+**Warum Port 443:**
+
+- Darüber läuft die Anwendung selbst, verschlüsselt. Clients rufen
+  `https://<domain>/profi/` ohne Portnummer auf - das ist Port 443.
+- Das gilt für **alle** Clients, nicht nur für iOS: Browser, iOS- und
+  Android-App, MDE-Geräte, Schnittstellen.
+- Gerade die Apps brauchen HTTPS mit einem gültigen Zertifikat: iOS lässt
+  Apps grundsätzlich nur noch über HTTPS kommunizieren (App Transport
+  Security), Android sperrt unverschlüsseltes HTTP ab Version 9
+  standardmäßig ebenfalls. Ein selbst ausgestelltes Zertifikat lehnen
+  beide ab - darum Let's Encrypt.
+- Von außen nötig, sobald Geräte außerhalb des Firmennetzes arbeiten
+  (Mobilfunk, Außendienst, Homeoffice). Arbeiten wirklich alle Geräte nur
+  im Firmen-WLAN, reicht 443 intern (Split-DNS) - **Port 80 muss trotzdem
+  von außen offen sein**, sonst gibt es kein Zertifikat.
+- Mehrere Instanzen auf einer Domain mit eigenem `LISTEN_PORT`
+  ([varianten.md](varianten.md)): dieser Port statt oder zusätzlich zu
+  Port 443. Port 80 bleibt in jedem Fall Pflicht.
+
 ## 0. Vorab klären (vor dem Termin)
 
 - **Variante:** A (Proxy und JBoss auf SRV), B (eigener Linux-Proxy beim
@@ -31,10 +79,8 @@ Weitere Instanz auf einem schon eingerichteten Host:
   DNS intern:     <domain>  A  <Proxy-Host>             (Split-DNS)
   Proxy-Host: feste Adresse (kein DHCP), Debian 12 oder 13
   ```
-  Port 80 bleibt offen: Die Erneuerung prüft alle 60 Tage darüber. Wird er
-  geschlossen, fällt das Zertifikat rund zwei Monate später aus
-  (`cert-check.sh` meldet es vorher). Hat die Domain einen AAAA-Eintrag,
-  braucht der Host auch IPv6.
+  Warum Port 80 dauerhaft offen bleibt: siehe oben. Hat die Domain einen
+  AAAA-Eintrag, braucht der Host auch IPv6.
 - **Wer spricht den JBoss heute direkt an?** MDE-Geräte, Verknüpfungen,
   Schnittstellen, Webservice-Clients. Nach der Umstellung des Backends
   zeigen alle Verweise auf den externen Namen - diese Clients müssen
