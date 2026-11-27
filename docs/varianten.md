@@ -16,8 +16,9 @@ Weiterleitung steht dort als `BACKEND` in `sites/<name>.env`.
 **D ist für Kunden, die nur Windows wollen.** Dort läuft statt
 nginx und certbot [Caddy](https://caddyserver.com) als Windows-Dienst - ein
 Programm, das Zertifikate selbst holt und erneuert. Die Skripte dieses
-Repos (Prüfung, Fehlermails) gibt es dort nicht. Eine eigene Anleitung
-folgt nach dem ersten Test.
+Repos gibt es dort nicht; Prüfung und Fehlermail übernimmt
+`windows/pruefung.ps1`. Anleitung:
+[installation-windows.md](installation-windows.md) (noch ungetestet).
 
 Reihenfolge der Empfehlung: A oder C (nichts beim Kunden), dann B (auch als
 Linux-VM auf dem Windows-Server), erst dann D.

@@ -1,4 +1,6 @@
-# Installation beim Kunden
+# Installation beim Kunden - Linux (Varianten A-C)
+
+Nur Windows (Variante D, Caddy): [installation-windows.md](installation-windows.md).
 
 Vom leeren Debian-Host bis zum umgestellten JBoss. Die Reihenfolge ist so
 gewählt, dass bis einschließlich Zertifikat nichts am laufenden Betrieb

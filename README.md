@@ -73,7 +73,9 @@ schon da ist. nginx startet deshalb immer - die Neustartschleife
 ## Neuer Host / neue Instanz
 
 Schritt für Schritt vom leeren Host bis zum umgestellten JBoss:
-[docs/installation.md](docs/installation.md). Weitere Instanz auf einem
+[docs/installation.md](docs/installation.md) (Linux),
+[docs/installation-windows.md](docs/installation-windows.md) (nur Windows,
+Caddy, noch ungetestet). Weitere Instanz auf einem
 eingerichteten Host: [docs/neue-instanz.md](docs/neue-instanz.md).
 Welche Variante (A: alles auf SRV, B: eigener Proxy beim Kunden,
 C: SRV als Proxy für einen JBoss beim Kunden; D: nur Windows mit
@@ -89,7 +91,8 @@ Paketquelle, `openssl`, `curl`, `msmtp` (`/etc/msmtprc` lokal, nie im Repo).
 
 **Der Proxy-Host muss Linux sein.** Windows (auch mit Docker Desktop)
 geht nicht: `network_mode: host`, systemd-Timer und die bash-Skripte
-setzen einen Linux-Host voraus. Das Backend (JBoss) selbst darf auf
+setzen einen Linux-Host voraus. Für Kunden, die nur Windows wollen, gibt
+es statt dieses Aufbaus Caddy (`windows/`, Variante D). Das Backend (JBoss) selbst darf auf
 einem Windows-Rechner laufen - der Proxy erreicht ihn über `BACKEND`.
 
 Wird das Repo unter Windows geklont und von dort auf den Host kopiert,

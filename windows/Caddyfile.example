@@ -1,0 +1,38 @@
+# Caddy als HTTPS-Proxy vor dem JBoss (Variante D, nur Windows).
+# Kopieren nach C:\caddy\Caddyfile, Werte mit <...> ersetzen.
+# Pfade mit / schreiben, nicht mit \.
+
+{
+	email <admin@kunde.at>              # Let's-Encrypt-Konto, bekommt Ablaufwarnungen
+	log {
+		output file C:/caddy/log/caddy.log  # Caddy selbst, u. a. Zertifikatsfehler
+	}
+	# Probelauf gegen die Let's-Encrypt-Testumgebung (wie cert-issue.sh --trocken).
+	# Nach erfolgreichem Test entfernen und "caddy reload" ausführen.
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+<profi.kunde.at> {
+	log {
+		output file C:/caddy/log/zugriff.log
+	}
+
+	request_body {
+		max_size 50MB
+	}
+
+	# HSTS erst, wenn der Rückweg auf HTTP nicht mehr gebraucht wird
+	# header Strict-Transport-Security "max-age=31536000"
+
+	redir /profi /profi/ 301
+
+	handle /profi/* {
+		reverse_proxy 127.0.0.1:<28080> {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle {
+		respond 404
+	}
+}
