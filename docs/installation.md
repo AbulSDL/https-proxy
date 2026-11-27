@@ -14,8 +14,9 @@ Weitere Instanz auf einem schon eingerichteten Host:
 ## 0. Vorab klären (vor dem Termin)
 
 - **Variante:** A (Proxy und JBoss auf SRV), B (eigener Linux-Proxy beim
-  Kunden, JBoss auf Windows) oder C (SRV als Proxy für einen JBoss beim
-  Kunden, über VPN)? Davon hängen `BACKEND` und die Firewall-Freigaben ab -
+  Kunden, JBoss auf Windows), C (SRV als Proxy für einen JBoss beim
+  Kunden, über VPN) oder D (nur ein Windows-Server: Proxy in einer
+  Linux-VM darauf)? Davon hängen `BACKEND` und die Firewall-Freigaben ab -
   [varianten.md](varianten.md). Bei A und C wird auf SRV nur eine Instanz
   ergänzt: [neue-instanz.md](neue-instanz.md).
 - **Kundenwerte:** externer Name (z. B. `profi.kunde.at`), interner JBoss
