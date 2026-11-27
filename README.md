@@ -75,8 +75,9 @@ schon da ist. nginx startet deshalb immer - die Neustartschleife
 Schritt für Schritt vom leeren Host bis zum umgestellten JBoss:
 [docs/installation.md](docs/installation.md). Weitere Instanz auf einem
 eingerichteten Host: [docs/neue-instanz.md](docs/neue-instanz.md).
-JBoss auf demselben Host, einem anderen Rechner oder nur Windows-Server
-vorhanden: [docs/varianten.md](docs/varianten.md).
+Welche Variante (A: alles auf SRV, B: eigener Proxy beim Kunden,
+C: SRV als Proxy für einen JBoss beim Kunden):
+[docs/varianten.md](docs/varianten.md).
 Bekannte Fallen: [docs/fallen.md](docs/fallen.md). Die Umstellung des
 Backends selbst ist nicht Teil dieses Repos (interne Anleitung).
 

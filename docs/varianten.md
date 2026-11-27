@@ -1,101 +1,156 @@
-# Varianten: Wo laufen Proxy und Backend?
+# Varianten: Wo laufen Proxy und JBoss?
 
-Vor dem Termin klären, welche Variante beim Kunden vorliegt - davon hängen
-`BACKEND`, die nötigen Firewall-Freigaben und die Prüfung ab.
+Vor dem Termin klären, welche Variante vorliegt - davon hängen `BACKEND`,
+die Firewall-Freigaben und die Prüfung ab.
 
-| Variante | Proxy-Host | Backend (JBoss) | `BACKEND` in `sites/<name>.env` |
+| Variante | Proxy (dieses Repo) | JBoss | `BACKEND` in `sites/<name>.env` |
 |---|---|---|---|
-| 1 | Linux | auf **demselben** Linux-Host | `127.0.0.1:<port>` |
-| 2 | Linux | auf einem **anderen** Rechner (Windows oder Linux) | `<interne IP>:<port>` |
-| 2b | ein zentraler Linux-Proxy | **mehrere** Backends/Instanzen, gleicher Hostname, je eigener Port | je Instanz eine Datei mit eigenem `LISTEN_PORT` |
-| 3 | beim Kunden gibt es **nur Windows-Server** | Windows | Linux-VM als Proxy anlegen, dann wie Variante 2 |
+| A | **SRV** (unser Linux-Server) | Instanzen auf **SRV** selbst | `127.0.0.1:<port>` |
+| B | Linux-Server **beim Kunden** | Windows-Server beim Kunden | `<LAN-IP des JBoss>:<port>` |
+| C | **SRV** | Windows-Server **beim Kunden** | `<IP des JBoss, über VPN erreichbar>:<port>` |
 
-Der Proxy selbst läuft immer unter Linux (siehe README, Voraussetzungen).
-Das Backend darf auf Windows oder Linux laufen.
+Der Proxy läuft immer unter Linux (Docker, systemd, bash). Der JBoss darf
+auf Linux oder Windows laufen - der Proxy braucht nur `IP:Port` und eine
+Netzverbindung dorthin.
 
-## Variante 1: Backend auf demselben Host
+**Auf SRV (A und C) laufen mehrere Instanzen** in einem Proxy: je Instanz
+eine Datei in `sites/`, alle Namen in `SITES` in `host.env`. Wie sie sich
+unterscheiden (eigene Domain oder eigener Port), steht unter
+[Mehrere Instanzen auf einem Proxy](#mehrere-instanzen-auf-einem-proxy).
 
-```bash
-ss -ltn | grep ':28080 '                     # lauscht das Backend?
-curl -s -o /dev/null -m 5 -w '%{http_code}\n' http://127.0.0.1:28080/profi/
-```
+## Prüfung: Erreicht der Proxy den JBoss?
 
-Erwartet: eine Zeile bei `ss`, Antwort `200`. Der Container nutzt das Netz
-des Hosts (`network_mode: host`), `127.0.0.1` ist darum der Host selbst.
-
-Empfehlung: Das Backend nur an `127.0.0.1` binden. Sonst ist es im
-internen Netz zusätzlich unverschlüsselt erreichbar.
-
-## Variante 2: Backend auf einem anderen Rechner
-
-Vom **Proxy-Host** aus prüfen:
+Vom **Proxy-Host** aus, mit dem Wert aus `BACKEND`:
 
 ```bash
-curl -s -o /dev/null -m 5 -w '%{http_code}\n' http://192.0.2.10:28080/profi/
+curl -s -o /dev/null -m 5 -w '%{http_code}\n' http://<BACKEND>/profi/
 ```
 
-| Ergebnis | Ursache | Abhilfe |
+| Ergebnis | Bedeutung | Abhilfe |
 |---|---|---|
-| `200` | alles erreichbar | - |
-| `000` nach 5 s (Timeout) | Firewall auf dem Backend-Rechner oder dazwischen | Freigabe, siehe unten |
-| `000` sofort (Connection refused) | Backend lauscht nicht auf dieser Adresse | Backend läuft nicht oder nur auf `127.0.0.1` |
+| `200`, `302` o. ä. (2xx/3xx) | erreichbar - JBoss leitet oft auf die Anmeldung weiter | - |
+| `404` | JBoss erreichbar, aber falscher Pfad | `APP_PATH` prüfen |
+| `000` nach 5 s (Timeout) | Firewall auf dem JBoss-Rechner oder dazwischen, VPN fehlt | Freigabe, siehe unten |
+| `000` sofort (Connection refused) | JBoss lauscht nicht auf dieser Adresse | läuft nicht oder nur auf `127.0.0.1` |
 
-**Lauscht das Backend im Netz?** Auf dem Backend-Rechner:
+## Variante A: Proxy und JBoss auf SRV
+
+```bash
+ss -ltn | grep ':28080 '        # lauscht die Instanz?
+```
+
+`127.0.0.1` ist SRV selbst, weil der Container das Netz des Hosts nutzt
+(`network_mode: host`).
+
+Empfehlung: Die JBoss-Instanzen nur an `127.0.0.1` binden. Sonst sind sie
+im internen Netz zusätzlich unverschlüsselt erreichbar.
+
+**Läuft auf SRV schon ein nginx (oder Apache)?**
+
+```bash
+ss -tlnp | grep -E ':(80|443) '
+```
+
+Steht dort ein Prozess, kann der Container nicht starten - Port 80 und 443
+gehören genau einem Programm. Dann nicht beide parallel betreiben, sondern
+die bestehenden Einträge als Instanzen in `sites/` übernehmen und den alten
+nginx erst beim Umschalten stoppen (`systemctl disable --now nginx`).
+Vorher abstimmen, was der alte nginx sonst noch ausliefert.
+
+## Variante B: Eigener Linux-Proxy beim Kunden
+
+Der Kunde stellt einen Linux-Server (oder eine VM, siehe unten) bereit, der
+JBoss läuft auf einem Windows-Server im selben Netz. Weiter mit
+[installation.md](installation.md); `BACKEND` ist die LAN-Adresse des
+Windows-Servers.
+
+**Lauscht der JBoss im Netz?** Auf dem Windows-Server:
 
 ```powershell
-netstat -ano | findstr :28080        # Windows
-```
-```bash
-ss -ltn | grep ':28080 '             # Linux
+netstat -ano | findstr :28080
 ```
 
 `0.0.0.0:28080` oder die LAN-Adresse ist richtig. Steht dort nur
-`127.0.0.1:28080`, erreicht der Proxy das Backend nicht - die Bindeadresse
-des Backends muss geändert werden.
+`127.0.0.1:28080`, erreicht der Proxy den JBoss nicht - die Bindeadresse
+muss geändert werden.
 
-**Freigabe auf dem Backend-Rechner** - nur für den Proxy, nicht für alle:
-
-Windows (PowerShell als Administrator):
+**Freigabe auf dem Windows-Server** - nur für den Proxy, nicht für alle
+(PowerShell als Administrator):
 
 ```powershell
-New-NetFirewallRule -DisplayName "HTTPS-Proxy -> Backend 28080" `
+New-NetFirewallRule -DisplayName "HTTPS-Proxy -> JBoss 28080" `
     -Direction Inbound -Protocol TCP -LocalPort 28080 `
     -RemoteAddress 192.0.2.20 -Action Allow
 ```
 
-Linux (ufw):
+`192.0.2.20` = Adresse des Proxy-Hosts, `28080` = JBoss-Port. Liegt eine
+Netzwerk-Firewall zwischen Proxy und JBoss (anderes Subnetz, VLAN), braucht
+es dort dieselbe Freigabe - das macht der IT-Betreuer des Kunden.
 
-```bash
-ufw allow from 192.0.2.20 to any port 28080 proto tcp
-```
+### Kunde hat keinen Linux-Server
 
-`192.0.2.20` = interne Adresse des Proxy-Hosts, `28080` = Backend-Port.
-Liegt eine Netzwerk-Firewall zwischen Proxy und Backend (anderes Subnetz,
-VLAN), braucht es dort dieselbe Freigabe - das macht der IT-Betreuer des
-Kunden.
+Zuerst prüfen, ob Variante C passt - dann braucht der Kunde keinen eigenen
+Proxy. Sonst: Docker Desktop unter Windows kann diesen Proxy nicht
+betreiben. Stattdessen eine kleine Linux-VM auf dem vorhandenen Hyper-V
+(oder VMware):
 
-Danach die Prüfung oben wiederholen, Erwartung `200`.
+- Debian 12 oder 13, ohne Desktop
+- 1 vCPU, 1 GB RAM, 10 GB Platte reichen
+- Netzwerk: **externer** virtueller Switch (eigene Adresse im LAN, kein NAT)
+- feste IP-Adresse - auf sie zeigen Portweiterleitung und interner DNS
+- Zeitsynchronisation aktiv lassen (TLS braucht die richtige Uhrzeit)
 
-## Variante 2b: Zentraler Proxy für mehrere Instanzen auf eigenen Ports
+Läuft die VM auf demselben Windows-Server wie der JBoss:
+`BACKEND=127.0.0.1:...` ist falsch - `127.0.0.1` ist die VM selbst. Richtig
+ist die LAN-Adresse des Windows-Servers, dazu die Firewall-Regel oben mit
+der Adresse der VM als `RemoteAddress`.
 
-Ein Proxy-Host bedient mehrere Backends, alle unter **demselben Hostnamen**.
-Unterschieden wird über den **Port**, nicht über den Namen - die Clients
-sprechen `https://saas.example.com:<port>/` an. Die Backends dürfen auf
-verschiedenen Rechnern liegen (auch Windows, auch in einem anderen
-Netzsegment).
+Eine Lösung ganz ohne Linux (z. B. IIS mit ARR und win-acme) gehört nicht
+zu diesem Repo.
 
-Je Instanz eine Datei, alle mit derselben `DOMAIN`:
+## Variante C: SRV als Proxy für einen JBoss beim Kunden
+
+Die Clients sprechen den Namen auf SRV an, SRV leitet an den Windows-Server
+beim Kunden weiter. Beim Kunden wird kein Proxy installiert.
+
+- **Nur über VPN.** Zwischen Proxy und JBoss läuft unverschlüsseltes HTTP
+  (Anmeldedaten, Sitzungscookies). Das darf nicht offen über das Internet
+  gehen - es braucht eine Site-to-Site-VPN-Verbindung von SRV ins Netz des
+  Kunden. `BACKEND` ist die interne Adresse des JBoss, wie sie über das VPN
+  erreichbar ist.
+- **Freigabe beim Kunden:** Windows-Firewall-Regel wie in Variante B, als
+  `RemoteAddress` die Adresse, mit der SRV über das VPN ankommt. Wird im
+  VPN genattet, ist das nicht die Adresse von SRV - mit dem IT-Betreuer
+  klären.
+- **DNS und Firewall zeigen auf SRV,** nicht auf den Kunden: der öffentliche
+  Name des Kunden (oder ein Name unter unserer Domain) bekommt die
+  öffentliche Adresse von SRV.
+- **Leitung:** Jede Anfrage geht Client -> SRV -> VPN -> Kunde und zurück.
+  Fällt das VPN aus, meldet der Proxy `502`/`504`; `cert-check.sh` meldet
+  das ebenfalls.
+
+Die Prüfung von oben **auf SRV** ausführen, wenn das VPN steht.
+
+## Mehrere Instanzen auf einem Proxy
+
+Die Instanzen unterscheiden sich für die Clients auf zwei Arten:
+
+**Eigene Domain je Instanz** (`profi.kunde1.at`, `profi.kunde2.at`): alle
+auf Port 443, je Domain ein eigenes Zertifikat. Für die Clients am
+einfachsten.
+
+**Eine Domain, eigener Port je Instanz** (`https://saas.example.com:30443/`):
 
 ```
 # sites/kunde-app.env
 DOMAIN=saas.example.com
 LISTEN_PORT=30443
-BACKEND=192.0.2.30:30080
+BACKEND=127.0.0.1:30080
 
-# sites/kunde-bericht.env       (zweite Anwendung desselben Kunden, z. B. Berichtsserver)
+# sites/kunde-bericht.env       (zweite Anwendung desselben Kunden)
 DOMAIN=saas.example.com
 LISTEN_PORT=30943
-BACKEND=192.0.2.30:8082
+BACKEND=127.0.0.1:8082
 APP_PATH=/jasperserver-pro/
 ```
 
@@ -109,51 +164,18 @@ Was dabei gilt:
 - **Ein Zertifikat für alle.** Es hängt an der Domain, nicht am Port.
   `cert-issue.sh` holt es einmal; für jede weitere Instanz derselben Domain
   meldet es "bereits ein certbot-Zertifikat" - dann reicht `render.sh`.
-- **Port 80 bleibt Pflicht** für die Ausstellung und Erneuerung (HTTP-01),
-  auch wenn kein Client je Port 80 oder 443 benutzt. Weil keine Instanz auf
-  443 liegt, antwortet Port 80 außer für ACME mit 404 statt umzuleiten.
+- **Port 80 bleibt Pflicht** für Ausstellung und Erneuerung, auch wenn kein
+  Client Port 80 oder 443 benutzt. Liegt keine Instanz auf 443, antwortet
+  Port 80 außer für ACME mit 404 statt umzuleiten.
 - **Firewall:** je `LISTEN_PORT` eine Weiterleitung auf den Proxy-Host, dazu
-  Port 80. Liegen die Backends in einem anderen Netzsegment, braucht es dort
-  eine Freigabe Proxy -> Backend-Port (ohne NAT, sonst greift eine Regel mit
-  `RemoteAddress` auf dem Backend nicht) - siehe Variante 2.
-- **Das Backend muss seinen äußeren Port kennen.** Erzeugt die Anwendung
+  Port 80.
+- **Der JBoss muss seinen äußeren Port kennen.** Erzeugt die Anwendung
   absolute Adressen, muss sie `LISTEN_PORT` als ihren Port verwenden, nicht
-  den internen Backend-Port. Bei Tomcat heißen die Attribute am Konnektor
-  `proxyName`/`proxyPort`, bei JBoss `proxy-name`/`proxy-port`, jeweils mit
-  `scheme="https"` und `secure="true"`.
-- **`cert-check.sh` prüft jede Instanz einzeln** auf ihrem Port - eine
-  fehlende Freigabe zu einem Backend fällt dort als `502`/`504` auf.
-- **Nur HTTP.** Protokolle wie JMS oder Remoting zwischen Client und Backend
-  laufen nicht über diesen Proxy.
+  den internen Port (JBoss: `proxy-name`/`proxy-port` mit `scheme="https"`
+  und `secure="true"`; Tomcat: `proxyName`/`proxyPort`).
+- **`cert-check.sh` prüft jede Instanz einzeln** auf ihrem Port - ein nicht
+  erreichbarer JBoss fällt dort als `502`/`504` auf.
+- **Nur HTTP.** Protokolle wie JMS oder Remoting laufen nicht über diesen
+  Proxy.
 
-## Variante 3: Nur Windows-Server vorhanden
-
-Bevor eine Lösung beim Kunden gesucht wird: Kann ein **bestehender
-Linux-Proxy** (z. B. der eigene, Variante 2b) das Backend erreichen? Dann
-braucht der Kunde gar keinen eigenen Proxy - nur eine Freigabe vom Proxy zu
-seinem Backend.
-
-Sonst: Docker Desktop unter Windows kann diesen Proxy nicht betreiben
-(`network_mode: host`, systemd-Timer, bash). Stattdessen eine kleine
-Linux-VM auf dem vorhandenen Hyper-V (oder VMware) anlegen:
-
-- Debian 12 oder 13, ohne Desktop
-- 1 vCPU, 1 GB RAM, 10 GB Platte reichen
-- Netzwerk: **externer** virtueller Switch (eigene Adresse im LAN, kein NAT)
-- feste IP-Adresse (kein DHCP) - auf sie zeigen Portweiterleitung und
-  interner DNS
-- Zeitsynchronisation aktiv lassen (TLS und Zertifikatsprüfung brauchen die
-  richtige Uhrzeit)
-
-Ab dann ist es Variante 2: die VM ist der Proxy-Host, der Windows-Server
-das Backend. Weiter mit [installation.md](installation.md), Schritt 1.
-
-**Läuft die VM auf demselben Windows-Rechner wie das Backend:**
-`BACKEND=127.0.0.1:...` ist dann falsch - `127.0.0.1` ist die VM selbst.
-Richtig ist die **LAN-Adresse des Windows-Rechners**, dazu die
-Windows-Firewall-Regel aus Variante 2 mit der Adresse der VM als
-`RemoteAddress`.
-
-Eine Lösung ganz ohne Linux (z. B. IIS mit Application Request Routing und
-win-acme) gehört nicht zu diesem Repo. Ist keine VM möglich, vorher
-abstimmen.
+Neue Instanz auf einem eingerichteten Proxy: [neue-instanz.md](neue-instanz.md).

@@ -12,9 +12,11 @@ Weitere Instanz auf einem schon eingerichteten Host:
 
 ## 0. Vorab klären (vor dem Termin)
 
-- **Variante:** Läuft der JBoss auf dem Proxy-Host, auf einem anderen
-  Rechner, oder gibt es nur Windows-Server? Davon hängen `BACKEND` und die
-  Firewall-Freigaben ab - [varianten.md](varianten.md).
+- **Variante:** A (Proxy und JBoss auf SRV), B (eigener Linux-Proxy beim
+  Kunden, JBoss auf Windows) oder C (SRV als Proxy für einen JBoss beim
+  Kunden, über VPN)? Davon hängen `BACKEND` und die Firewall-Freigaben ab -
+  [varianten.md](varianten.md). Bei A und C wird auf SRV nur eine Instanz
+  ergänzt: [neue-instanz.md](neue-instanz.md).
 - **Kundenwerte:** externer Name (z. B. `profi.kunde.at`), interner JBoss
   `host:port` (`8080 + Portversatz`, z. B. `10.0.0.5:28080`)
 - **Beim Kunden beauftragen:**
@@ -131,7 +133,8 @@ Alles andere hat passende Vorgaben (Port 443, Pfad `/profi/`, HSTS aus).
 curl -s -o /dev/null -m 5 -w '%{http_code}\n' http://10.0.0.5:28080/profi/
 ```
 
-Erwartet: `200`. Bei `000` erst die Ursache beheben (Firewall,
+Erwartet: `200` oder eine Weiterleitung wie `302` (JBoss schickt oft
+zuerst zur Anmeldung). Bei `000` erst die Ursache beheben (Firewall,
 Bindeadresse), sonst liefert der Proxy später nur `502` - siehe
 [varianten.md](varianten.md).
 
