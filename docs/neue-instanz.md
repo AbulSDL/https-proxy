@@ -1,6 +1,6 @@
 # Weitere Instanz auf einem eingerichteten Host
 
-Für einen neuen Host von Grund auf: [installation.md](installation.md).
+Für einen neuen Host von Grund auf: [installation-linux.md](installation-linux.md).
 Dort stehen auch Vorabklärung, Firewall/DNS und die JBoss-Umstellung -
 sie gelten für jede weitere Instanz genauso.
 

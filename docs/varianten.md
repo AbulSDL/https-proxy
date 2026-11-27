@@ -71,7 +71,7 @@ Vorher abstimmen, was der alte nginx sonst noch ausliefert.
 
 Der Kunde stellt einen Linux-Server oder eine Linux-VM bereit (siehe
 unten), der JBoss läuft auf einem Windows-Server im selben Netz. Weiter mit
-[installation.md](installation.md); `BACKEND` ist die LAN-Adresse des
+[installation-linux.md](installation-linux.md); `BACKEND` ist die LAN-Adresse des
 Windows-Servers.
 
 **Lauscht der JBoss im Netz?** Auf dem Windows-Server:

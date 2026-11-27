@@ -27,7 +27,7 @@ Internet ──443──▶ Firewall ──▶ Proxy-Host (nginx) ──http─�
 
 ## Schnellstart beim Kunden
 
-Kurzfassung - ausführlich in [docs/installation.md](docs/installation.md).
+Kurzfassung - ausführlich in [docs/installation-linux.md](docs/installation-linux.md).
 
 ```bash
 git clone https://github.com/AbulSDL/https-proxy.git /opt/profineo-proxy
@@ -73,16 +73,17 @@ schon da ist. nginx startet deshalb immer - die Neustartschleife
 ## Neuer Host / neue Instanz
 
 Schritt für Schritt vom leeren Host bis zum umgestellten JBoss:
-[docs/installation.md](docs/installation.md) (Linux),
-[docs/installation-windows.md](docs/installation-windows.md) (nur Windows,
-Caddy, noch ungetestet). Weitere Instanz auf einem
-eingerichteten Host: [docs/neue-instanz.md](docs/neue-instanz.md).
-Welche Variante (A: alles auf SRV, B: eigener Proxy beim Kunden,
-C: SRV als Proxy für einen JBoss beim Kunden; D: nur Windows mit
-Caddy):
-[docs/varianten.md](docs/varianten.md).
-Bekannte Fallen: [docs/fallen.md](docs/fallen.md). Die Umstellung des
-Backends selbst ist nicht Teil dieses Repos (interne Anleitung).
+
+- Linux (Varianten A-C), mit Testlauf in einer VM:
+  [docs/installation-linux.md](docs/installation-linux.md)
+- Nur Windows (Variante D, Caddy, noch ungetestet):
+  [docs/installation-windows.md](docs/installation-windows.md)
+- Weitere Instanz auf einem eingerichteten Host:
+  [docs/neue-instanz.md](docs/neue-instanz.md)
+- Welche Variante passt: [docs/varianten.md](docs/varianten.md)
+
+Die Umstellung des Backends selbst ist nicht Teil dieses Repos (interne
+Anleitung).
 
 ## Voraussetzungen auf dem Host
 

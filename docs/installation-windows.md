@@ -9,7 +9,7 @@ als Windows-Dienst auf **demselben** Server wie der JBoss, holt das
 Let's-Encrypt-Zertifikat selbst und erneuert es selbst. nginx, certbot,
 Docker und die Skripte aus `scripts/` werden hier nicht gebraucht.
 
-Linux-Proxy (Varianten A-C): [installation.md](installation.md).
+Linux-Proxy (Varianten A-C): [installation-linux.md](installation-linux.md).
 Welche Variante: [varianten.md](varianten.md).
 
 Wie unter Linux ändert bis einschließlich Zertifikat nichts am laufenden
@@ -68,7 +68,7 @@ Windows-Server des JBoss).
 
 ## 0. Vorab klären
 
-Wie [installation.md](installation.md), Schritt 0 - mit einem Unterschied:
+Wie [installation-linux.md](installation-linux.md), Schritt 0 - mit einem Unterschied:
 Firewall und DNS zeigen auf den **Windows-Server des JBoss**.
 
 ```
@@ -234,7 +234,7 @@ curl.exe -s -o NUL -w "%{http_code}`n" https://profi.kunde.at/profi/ --resolve p
 ## 8. JBoss umstellen (angekündigter Ausfall)
 
 Genau wie unter Linux - nach der **internen Anleitung**:
-[installation.md](installation.md), Schritt 8. Caddy gibt `Host`,
+[installation-linux.md](installation-linux.md), Schritt 8. Caddy gibt `Host`,
 `X-Forwarded-Proto: https` und `X-Forwarded-For` von selbst weiter.
 
 Abschlusstest: `https://profi.kunde.at/profi/` im Browser, anmelden,

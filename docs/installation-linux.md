@@ -6,12 +6,12 @@ Vom leeren Debian-Host bis zum umgestellten JBoss. Die Reihenfolge ist so
 gewählt, dass bis einschließlich Zertifikat nichts am laufenden Betrieb
 ändert - erst Schritt 8 (JBoss umstellen) bringt einen kurzen Ausfall.
 
-Alle Befehle als **root** auf dem Proxy-Host (`sudo -i`). Kundenwerte
-werden **nur dort** eingetragen, nie ins Repo.
+Alle Befehle als **root** auf dem Proxy-Host (`sudo -i` oder `sudo su -`).
+Kundenwerte werden **nur dort** eingetragen, nie ins Repo.
 
 Weitere Instanz auf einem schon eingerichteten Host:
 [neue-instanz.md](neue-instanz.md). Vorher ausprobieren in einer VM:
-[test-vm.md](test-vm.md).
+[Testlauf in einer VM](#testlauf-in-einer-vm) am Ende dieser Anleitung.
 
 ## Voraussetzung: Port 80 und 443 von außen erreichbar
 
@@ -284,4 +284,100 @@ selbst neu (ein Reload sähe die neue Datei nicht).
 | Anmeldung geht, erster Klick führt ins Leere | JBoss noch nicht umgestellt (Schritt 8) |
 | `Anwendung antwortet mit '502'` | `BACKEND` falsch oder JBoss läuft nicht |
 
-Mehr in [fallen.md](fallen.md).
+| `$'\r': command not found` | Repo unter Windows kopiert, Zeilenenden CRLF - mit `git clone` direkt auf dem Host holen |
+| `docker: command not found` nach `apt install docker` | falsches Paket - Docker wie in Schritt 1 installieren |
+| `nslookup` zeigt andere Adresse als erwartet | `nslookup`/`dig` übergehen `/etc/hosts` - `getent hosts <domain>` prüfen |
+
+## Testlauf in einer VM
+
+Den ganzen Ablauf einmal ohne Kunden durchspielen, z. B. in einer
+Debian-VM auf dem eigenen Rechner (UTM, VirtualBox, Hyper-V). Let's
+Encrypt erreicht die VM aus dem Internet nicht - ein selbst ausgestelltes
+Zertifikat ersetzt Schritt 7. Statt JBoss antwortet ein kleiner
+Python-Webserver. Abweichungen von den Schritten oben:
+
+**Schritt 0** entfällt. **Schritt 1** genau so, zusätzlich:
+
+```bash
+apt install -y python3
+docker run --rm hello-world     # "Hello from Docker!"
+```
+
+**Schritt 2** nur, wenn SMTP-Zugangsdaten zur Hand sind - sonst
+überspringen, `install.sh` warnt dann nur.
+
+**Schritt 3** genau so. **Schritt 4** mit Testwerten:
+
+```bash
+cp host.env.example host.env
+sed -i 's/^SITES=.*/SITES=test/' host.env
+printf 'DOMAIN=profi.test.local\nBACKEND=127.0.0.1:28080\n' > sites/test.env
+nano host.env                   # ACME_EMAIL, MAIL_AN: eigene Adresse
+```
+
+Test-Backend statt JBoss (nach einem Neustart der VM erneut starten):
+
+```bash
+mkdir -p /tmp/be/profi && echo hallo > /tmp/be/profi/index.html
+(cd /tmp/be && nohup python3 -m http.server 28080 >/dev/null 2>&1 &)
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:28080/profi/   # 200
+```
+
+**Schritt 5** genau so; den Kurztest statt vom Handy lokal:
+
+```bash
+d=profi.test.local
+mkdir -p certbot/www/.well-known/acme-challenge
+echo ok > certbot/www/.well-known/acme-challenge/test
+curl -s --resolve $d:80:127.0.0.1 http://$d/.well-known/acme-challenge/test   # ok
+rm certbot/www/.well-known/acme-challenge/test
+```
+
+**Schritt 6** genau so. **Schritt 7** mit Platzhalter-Zertifikat:
+
+```bash
+d=profi.test.local              # nach neuer Anmeldung erneut setzen
+mkdir -p letsencrypt/live/$d
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 \
+  -subj "/CN=$d" -addext "subjectAltName=DNS:$d" \
+  -keyout letsencrypt/live/$d/privkey.pem -out letsencrypt/live/$d/fullchain.pem
+scripts/render.sh               # "test: https://profi.test.local:443/profi/ -> ..."
+```
+
+Prüfen:
+
+```bash
+curl -k --resolve $d:443:127.0.0.1 https://$d/profi/                              # hallo
+curl -sI --resolve $d:80:127.0.0.1 http://$d/profi/ | head -1                     # 301
+curl -sk --resolve $d:443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://$d/  # 404
+scripts/cert-check.sh           # ok, dazu "NICHT von certbot" - im Test richtig
+```
+
+Backend-Ausfall und geänderte `nginx.conf` (wie nach `git pull`):
+
+```bash
+pkill -f 'http.server 28080'
+curl -sk --resolve $d:443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://$d/profi/  # 502
+(cd /tmp/be && nohup python3 -m http.server 28080 >/dev/null 2>&1 &)
+
+echo '# test' >> nginx/nginx.conf && scripts/render.sh   # "Container neu erstellt"
+git checkout nginx/nginx.conf && scripts/render.sh
+```
+
+Optional im Browser: IP der VM mit `ip -4 a`, auf dem eigenen Rechner in
+`/etc/hosts` `<VM-IP> profi.test.local` eintragen,
+`https://profi.test.local/profi/` öffnen, Zertifikatswarnung bestätigen.
+
+**Schritt 8 und 9** entfallen.
+
+In der VM **muss** fehlschlagen: `scripts/cert-issue.sh test --trocken`
+(Timeout - Let's Encrypt erreicht die VM nicht) und `renew.sh` (meldet
+fehlendes certbot-Zertifikat, mit msmtp auch per Mail).
+
+Aufräumen:
+
+```bash
+cd /opt/profineo-proxy && docker compose down
+systemctl disable --now profineo-renew.timer profineo-check.timer
+pkill -f 'http.server 28080'
+```
