@@ -19,7 +19,7 @@ nur_trocken=0
 
 [[ -n $ACME_EMAIL ]] || fehler "host.env: ACME_EMAIL fehlt"
 [[ " $SITES " == *" $SITE "* ]] || fehler "$SITE steht nicht in SITES (host.env) - dieser Host bedient die Instanz nicht"
-nginx_laeuft || fehler "nginx läuft nicht - zuerst: scripts/render.sh && docker compose up -d"
+nginx_laeuft || fehler "nginx läuft nicht - zuerst: scripts/render.sh"
 
 if zert_von_certbot "$DOMAIN"; then
     info "Für $DOMAIN gibt es bereits ein certbot-Zertifikat. Erneuern übernimmt scripts/renew.sh."

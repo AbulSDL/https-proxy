@@ -6,6 +6,7 @@
 # startet nginx immer - auch bevor ein Zertifikat existiert.
 #
 #   scripts/render.sh            erzeugen, prüfen, einspielen, neu laden
+#                                (startet nginx, falls er nicht läuft)
 #   scripts/render.sh --pruefen  nur erzeugen und prüfen, nichts einspielen
 
 # shellcheck source=lib.sh
@@ -125,5 +126,8 @@ if nginx_laeuft; then
         info "nginx neu geladen"
     fi
 else
-    info "nginx läuft nicht - starten mit: docker compose up -d"
+    dc up -d nginx
+    sleep 2
+    nginx_laeuft || fehler "nginx startet nicht - siehe: docker logs profineo-proxy"
+    info "nginx gestartet"
 fi

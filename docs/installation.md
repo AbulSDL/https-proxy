@@ -8,7 +8,8 @@ Alle Befehle als **root** auf dem Proxy-Host (`sudo -i`). Kundenwerte
 werden **nur dort** eingetragen, nie ins Repo.
 
 Weitere Instanz auf einem schon eingerichteten Host:
-[neue-instanz.md](neue-instanz.md).
+[neue-instanz.md](neue-instanz.md). Vorher ausprobieren in einer VM:
+[test-vm.md](test-vm.md).
 
 ## 0. Vorab klären (vor dem Termin)
 
@@ -140,13 +141,15 @@ Bindeadresse), sonst liefert der Proxy später nur `502` - siehe
 
 ## 5. nginx starten
 
-Reihenfolge wichtig: **zuerst `render.sh`, dann den Container.**
+`render.sh` erzeugt die Konfiguration, prüft sie und startet den Container:
 
 ```bash
-scripts/render.sh
-docker compose up -d
+scripts/render.sh           # endet mit "nginx gestartet"
 docker ps                   # profineo-proxy muss "Up" sein
 ```
+
+Nicht `docker compose up -d` vor dem ersten `render.sh` - ohne erzeugte
+Konfiguration fehlt nginx der Port-80-Teil.
 
 Die Warnung `kein Zertifikat ... vorerst nur Port 80` ist hier **normal**.
 
@@ -227,7 +230,7 @@ selbst neu (ein Reload sähe die neue Datei nicht).
 | Meldung | Ursache |
 |---|---|
 | `Timeout during connect` bei cert-issue | Port 80 nicht von außen auf den Host weitergeleitet |
-| `nginx läuft nicht` | `docker compose up -d` fehlt - oder `docker logs profineo-proxy` lesen |
+| `nginx startet nicht` / `nginx läuft nicht` | `docker logs profineo-proxy` lesen, `scripts/render.sh` erneut |
 | cert-issue scheitert trotz offenem Port 80 | AAAA-Eintrag der Domain, aber kein IPv6 am Host |
 | Anmeldung geht, erster Klick führt ins Leere | JBoss noch nicht umgestellt (Schritt 8) |
 | `Anwendung antwortet mit '502'` | `BACKEND` falsch oder JBoss läuft nicht |

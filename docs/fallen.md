@@ -14,7 +14,8 @@ Gesammelt bei den bisherigen Umstellungen.
   Docker aus der offiziellen Paketquelle installieren.
 - **Ersetzte Datei/Verzeichnis im laufenden Container unsichtbar** - Bind-Mounts
   hängen am Inode. Darum tauscht `render.sh` nur den Inhalt von `conf.d/` aus.
-  Nach einer Änderung an `nginx/nginx.conf`: `docker compose up -d --force-recreate`.
+  Nach einer Änderung an `nginx/nginx.conf` (z. B. durch `git pull`) erkennt
+  `render.sh` das und erstellt den Container neu.
 - **`certbot renew` ohne Zertifikate meldet Erfolg** - darum prüft `renew.sh`
   selbst, ob jede Instanz ein certbot-Zertifikat hat.
 - **`NGINX_IMAGE`/`CERTBOT_IMAGE` aus `host.env` gelten nur über die Skripte** -
@@ -23,7 +24,8 @@ Gesammelt bei den bisherigen Umstellungen.
   `docker compose up -d` nicht: Ist dort ein anderes Image eingetragen, erstellt
   compose den Container still mit dem Standard-Image aus `compose.yaml` neu.
   Mit abweichendem Image deshalb nur `scripts/render.sh` verwenden (startet
-  bzw. erneuert den Container selbst) oder die Werte beim Aufruf mitgeben:
+  nginx, falls er nicht läuft, und erstellt ihn nach einer geänderten
+  `nginx.conf` neu) oder die Werte beim Aufruf mitgeben:
   `NGINX_IMAGE=... docker compose up -d`.
 
 ## DNS

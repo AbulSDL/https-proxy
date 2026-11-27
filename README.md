@@ -34,7 +34,7 @@ git clone https://github.com/AbulSDL/https-proxy.git /opt/profineo-proxy
 cd /opt/profineo-proxy
 cp host.env.example host.env                       # SITES, ACME_EMAIL, MAIL_AN
 cp sites/_beispiel.env.example sites/kunde.env     # DOMAIN, BACKEND
-scripts/render.sh && docker compose up -d && scripts/install.sh
+scripts/render.sh && scripts/install.sh           # render.sh startet auch nginx
 scripts/cert-issue.sh kunde                        # sobald Port 80 von außen erreichbar
 ```
 
