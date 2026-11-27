@@ -3,17 +3,24 @@
 Vor dem Termin klären, welche Variante vorliegt - davon hängen `BACKEND`,
 die Firewall-Freigaben und die Prüfung ab.
 
-| Variante | Proxy | JBoss | `BACKEND` in `sites/<name>.env` |
+| Variante | Proxy | JBoss | Weiterleitung an |
 |---|---|---|---|
 | A | **SRV** (unser Linux-Server) | Instanzen auf **SRV** selbst | `127.0.0.1:<port>` |
-| B | Linux-Server **beim Kunden** | Windows-Server beim Kunden | `<LAN-IP des JBoss>:<port>` |
+| B | Linux-Server oder Linux-VM **beim Kunden** | Windows-Server beim Kunden | `<LAN-IP des JBoss>:<port>` |
 | C | **SRV** | Windows-Server **beim Kunden** | `<IP des JBoss, über VPN erreichbar>:<port>` |
-| D | Linux-VM **auf dem Windows-Server** des JBoss | derselbe Windows-Server | `<LAN-IP des Windows-Servers>:<port>` |
+| D | Caddy **auf dem Windows-Server des JBoss** | derselbe Windows-Server | `127.0.0.1:<port>` |
 
-Der Proxy läuft immer unter Linux (Docker, systemd, bash) - gibt es beim
-Kunden nur Windows, in einer Linux-VM (Variante D). Der JBoss darf auf
-Linux oder Windows laufen - der Proxy braucht nur `IP:Port` und eine
-Netzverbindung dorthin.
+**A bis C nutzen dieses Repo** (Linux, Docker, nginx, certbot). Die
+Weiterleitung steht dort als `BACKEND` in `sites/<name>.env`.
+
+**D ist für Kunden, die nur Windows wollen.** Dort läuft statt
+nginx und certbot [Caddy](https://caddyserver.com) als Windows-Dienst - ein
+Programm, das Zertifikate selbst holt und erneuert. Die Skripte dieses
+Repos (Prüfung, Fehlermails) gibt es dort nicht. Eine eigene Anleitung
+folgt nach dem ersten Test.
+
+Reihenfolge der Empfehlung: A oder C (nichts beim Kunden), dann B (auch als
+Linux-VM auf dem Windows-Server), erst dann D.
 
 **Auf SRV (A und C) laufen mehrere Instanzen** in einem Proxy: je Instanz
 eine Datei in `sites/`, alle Namen in `SITES` in `host.env`. Wie sie sich
@@ -61,8 +68,8 @@ Vorher abstimmen, was der alte nginx sonst noch ausliefert.
 
 ## Variante B: Eigener Linux-Proxy beim Kunden
 
-Der Kunde stellt einen Linux-Server (oder eine VM, siehe unten) bereit, der
-JBoss läuft auf einem Windows-Server im selben Netz. Weiter mit
+Der Kunde stellt einen Linux-Server oder eine Linux-VM bereit (siehe
+unten), der JBoss läuft auf einem Windows-Server im selben Netz. Weiter mit
 [installation.md](installation.md); `BACKEND` ist die LAN-Adresse des
 Windows-Servers.
 
@@ -89,8 +96,28 @@ New-NetFirewallRule -DisplayName "HTTPS-Proxy -> JBoss 28080" `
 Netzwerk-Firewall zwischen Proxy und JBoss (anderes Subnetz, VLAN), braucht
 es dort dieselbe Freigabe - das macht der IT-Betreuer des Kunden.
 
-Hat der Kunde keinen Linux-Server: Variante C (kein Proxy beim Kunden
-nötig) oder Variante D (Linux-VM auf dem Windows-Server).
+### Linux-VM statt eigenem Server
+
+Hat der Kunde keinen Linux-Server, genügt eine kleine VM - auf dem
+vorhandenen Hypervisor (Hyper-V, VMware), auch auf dem Windows-Server des
+JBoss selbst. Ist der Windows-Server selbst eine VM, die Linux-VM
+**daneben** auf demselben Hypervisor anlegen, nicht darin.
+
+- Debian 12 oder 13, ohne Desktop
+- 1 vCPU, 1 GB RAM, 10 GB Platte reichen
+- Netzwerk: **externer** virtueller Switch (eigene Adresse im LAN, kein NAT)
+- feste IP-Adresse - auf sie zeigen Portweiterleitung und interner DNS
+- Zeitsynchronisation aktiv lassen (TLS braucht die richtige Uhrzeit)
+- automatischer Start mit dem Host (Hyper-V: "Automatische Startaktion" -
+  "Immer automatisch starten")
+
+Läuft die VM auf demselben Rechner wie der JBoss: `BACKEND=127.0.0.1:...`
+ist falsch - `127.0.0.1` ist die VM selbst. Richtig ist die LAN-Adresse des
+Windows-Servers, dazu die Firewall-Regel oben mit der Adresse der VM.
+
+Nicht empfohlen: Docker Desktop (kann `network_mode: host`, systemd und die
+Timer nicht) und WSL (läuft nur, solange jemand angemeldet ist; NAT mit
+wechselnder Adresse).
 
 ## Variante C: SRV als Proxy für einen JBoss beim Kunden
 
@@ -115,39 +142,35 @@ beim Kunden weiter. Beim Kunden wird kein Proxy installiert.
 
 Die Prüfung von oben **auf SRV** ausführen, wenn das VPN steht.
 
-## Variante D: Proxy und JBoss auf demselben Windows-Server
+## Variante D: Caddy auf dem Windows-Server des JBoss
 
-Beim Kunden gibt es nur den Windows-Server, auf dem auch der JBoss läuft.
-Der Proxy kommt in eine kleine **Linux-VM auf diesem Server** (Hyper-V,
-sonst VMware). Für die Clients sieht das aus wie ein eigener Proxy-Rechner.
+Der Kunde will nur Windows und hat einen Server, auf dem der JBoss läuft.
+Caddy kommt als Windows-Dienst auf **denselben** Server.
 
-Warum nicht direkt unter Windows: Docker Desktop kann diesen Proxy nicht
-betreiben (`network_mode: host`, systemd-Timer, bash), und WSL läuft nur,
-solange jemand angemeldet ist. Eine Lösung ganz ohne Linux (z. B. nginx für
-Windows oder IIS mit ARR, dazu win-acme) gehört nicht zu diesem Repo - vorher
-abstimmen.
+```
+profi.kunde.at {
+    handle /profi/* {
+        reverse_proxy 127.0.0.1:28080
+    }
+    respond 404
+}
+```
 
-**Die VM:**
+- Weiterleitung an `127.0.0.1` - der JBoss kann (und soll) nur lokal
+  lauschen, eine Firewall-Regel für den JBoss-Port entfällt.
+- **Port 80 und 443 müssen frei sein.** Auf Windows Server belegt oft IIS
+  Port 80: `netstat -ano | findstr ":80 :443"`.
+- Firewall und DNS wie bei den anderen Varianten, nur auf diesen Server;
+  Port 80 bleibt dauerhaft offen (Erneuerung).
+- Caddy leitet HTTP selbst auf HTTPS um (Code `308`) und gibt Host und
+  `X-Forwarded-Proto` von selbst weiter. Der JBoss wird genauso umgestellt
+  wie bei den anderen Varianten.
+- **Fehlt gegenüber diesem Repo:** Ablaufwarnung per Mail und Prüfung, ob
+  der JBoss antwortet - unter Windows als geplante Aufgabe nachzubauen.
 
-- Debian 12 oder 13, ohne Desktop
-- 1 vCPU, 1 GB RAM, 10 GB Platte reichen
-- Netzwerk: **externer** virtueller Switch (eigene Adresse im LAN, kein NAT)
-- feste IP-Adresse - auf sie zeigen Portweiterleitung und interner DNS
-- Zeitsynchronisation aktiv lassen (TLS braucht die richtige Uhrzeit)
-- automatischer Start mit dem Host (Hyper-V: "Automatische Startaktion" -
-  "Immer automatisch starten")
-
-Dann weiter mit [installation.md](installation.md), Schritt 1, in der VM.
-
-**`BACKEND` ist nicht `127.0.0.1`.** `127.0.0.1` ist in der VM die VM
-selbst. Richtig ist die LAN-Adresse des Windows-Servers, z. B.
-`BACKEND=192.0.2.10:28080`. Dazu auf dem Windows-Server die Firewall-Regel
-aus Variante B, mit der Adresse der **VM** als `RemoteAddress`. Der JBoss
-muss dafür im Netz lauschen (Prüfung wie in Variante B mit `netstat`).
-
-**Firewall und DNS** zeigen auf die VM, nicht auf den Windows-Server:
-Portweiterleitung 80 und 443 auf die Adresse der VM, interner DNS-Eintrag
-ebenso.
+Ein eigener Windows-Server nur für den Proxy ist nicht vorgesehen: Er
+kostet Lizenz und Wartung, ohne mehr zu können als D. Steht ein zweiter
+Rechner zur Verfügung, dort eine Linux-VM einrichten (Variante B).
 
 ## Mehrere Instanzen auf einem Proxy
 
