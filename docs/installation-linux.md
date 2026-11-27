@@ -113,29 +113,56 @@ ss -tlnp | grep -E ':(80|443) '     # keine Ausgabe = frei
 
 ## 2. Fehlermails einrichten (msmtp)
 
+Am einfachsten die Werte von SRV übernehmen (`cat /etc/msmtprc` dort).
+Das Passwort steht in einer eigenen Datei, nicht in `/etc/msmtprc`.
+
 ```bash
 nano /etc/msmtprc
 ```
 
 ```
 defaults
-auth on
 tls on
+tls_starttls on
 tls_trust_file /etc/ssl/certs/ca-certificates.crt
-logfile /var/log/msmtp.log
+syslog on
 
-account default
+account dgr
 host smtp.example.com
 port 587
 from proxy@example.com
+auth on
 user proxy@example.com
-password GEHEIM
+passwordeval cat /etc/msmtp-pass
+
+account default : dgr
 ```
 
+Anzupassen: `host`, `port`, `from`, `user`. Die letzte Zeile ist Pflicht -
+die Skripte rufen `msmtp` ohne Kontonamen auf und nehmen `default`.
+
 ```bash
-chmod 600 /etc/msmtprc
+nano /etc/msmtp-pass                      # nur das Passwort, eine Zeile
+chmod 600 /etc/msmtprc /etc/msmtp-pass
 printf 'To: du@example.com\nSubject: Test\n\nTest\n' | msmtp -t   # Mail muss ankommen
+journalctl -t msmtp -n 5                  # Protokoll (wegen "syslog on")
 ```
+
+**Port 25 oder 587:** Viele Internetanbieter und Firmennetze sperren
+ausgehend Port 25. Vorher prüfen, ob der Mailserver vom Proxy aus
+erreichbar ist:
+
+```bash
+for p in 587 25; do timeout 5 bash -c "</dev/tcp/smtp.example.com/$p" && echo "$p offen" || echo "$p gesperrt"; done
+```
+
+Sonderfälle:
+
+- Server verlangt Port 465: `port 465` und zusätzlich `tls_starttls off`.
+- Interner Relay ohne Anmeldung: `auth off`, Zeilen `user` und
+  `passwordeval` weglassen, Datei `/etc/msmtp-pass` entfällt.
+- Microsoft 365 nimmt einfache Passwort-Anmeldung über SMTP nicht mehr an -
+  dann Relay oder anderen Zugang bei der IT erfragen.
 
 ## 3. Repo klonen
 

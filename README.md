@@ -88,7 +88,7 @@ Anleitung).
 ## Voraussetzungen auf dem Host
 
 Debian 12/13, bash ≥ 4, Docker mit Compose-Plugin aus der offiziellen
-Paketquelle, `openssl`, `curl`, `msmtp` (`/etc/msmtprc` lokal, nie im Repo).
+Paketquelle, `openssl`, `curl`, `msmtp` (`/etc/msmtprc` und `/etc/msmtp-pass` lokal, nie im Repo).
 
 **Der Proxy-Host muss Linux sein.** Windows (auch mit Docker Desktop)
 geht nicht: `network_mode: host`, systemd-Timer und die bash-Skripte
